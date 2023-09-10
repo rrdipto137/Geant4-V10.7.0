@@ -67,7 +67,8 @@ vismanager->Initialize();
 
 G4UImanager *UImanager = G4UImanager::GetUIpointer();
 
-UImanager->Applycommand("/vis/open OGL");
+UImanager->Applycommand("/vis/open OGL");      ----------------------->//for visualization
+UImanager->Applycommand("/vis/drawVolume");     ------------------->// drawing mother volume
 ui->SessionStart();
 
 return 0;
