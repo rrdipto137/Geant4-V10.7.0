@@ -1,3 +1,37 @@
+//Sourcing Geant4make.sh
+
+. directory/geant4make.sh
+
+
+
+//sim.cc
+
+#include <iostream>
+
+#include "G4RunManager.hh"
+#include "G4UImanager.hh"
+#include "G4VisManager.hh"
+#include "G4VisExecutive.hh"
+#include "G4UIExecutive.hh"
+#include "construction.cc"
+int  main(int argc, char** argv)
+
+{ G4RunManager *runManager = new G4RunManager();
+runManager->SetUserInitialization(new MyDetectorConstruction());
+
+runManager->Initialize();
+ G4UIExecutive *ui = new G4UIExecutive(argc, argv);
+
+G4VisManager *vismanager =new G4VisExecutive ();
+vismanager->Initialize();
+
+G4UImanager *UImanager = G4UImanager::GetUIpointer();
+ui->SessionStart();
+
+return 0;
+
+}
+
 //construction.hh
 
 #ifndef CONSTRUCTION_HH
