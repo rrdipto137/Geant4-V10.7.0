@@ -1,0 +1,430 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//action.hh
+
+
+
+
+#ifndef ACTION_HH
+#define ACTION_HH
+
+#include "G4VUserActionInitialization.hh"
+
+ #include "generator.hh"
+//#include "run.hh"
+//#include "event.hh"
+//#include "stepping.hh"
+
+class MyActionInitialization : public G4VUserActionInitialization
+{
+public:
+    MyActionInitialization();
+    ~MyActionInitialization();
+    
+    //virtual void BuildForMaster() const;
+    virtual void Build() const;
+};
+
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//action.cc
+
+
+#include "action.hh"
+
+MyActionInitialization::MyActionInitialization()
+{}
+
+MyActionInitialization::~MyActionInitialization()
+{}
+
+//void MyActionInitialization::BuildForMaster() const
+//{
+ //   MyRunAction *runAction = new MyRunAction();
+ //   SetUserAction(runAction);
+//}
+
+void MyActionInitialization::Build() const
+{
+    MyPrimaryGenerator *generator = new MyPrimaryGenerator();
+    SetUserAction(generator);
+    
+   // MyRunAction *runAction = new MyRunAction();
+  //  SetUserAction(runAction);
+    
+   // MyEventAction *eventAction = new MyEventAction(runAction);
+   // SetUserAction(eventAction);
+    
+  //  MySteppingAction *steppingAction = new MySteppingAction(eventAction);
+    //SetUserAction(steppingAction);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//construction.cc
+
+
+
+
+#include  "construction.hh"
+
+ MyDetectorConstruction::MyDetectorConstruction()
+ {}
+ 
+  MyDetectorConstruction::~MyDetectorConstruction()
+  {}
+   G4VPhysicalVolume *MyDetectorConstruction::Construct()
+   {
+   
+   G4NistManager *nist = G4NistManager::Instance();
+   G4Material *worldMat= nist->FindOrBuildMaterial("G4_AIR");
+   
+   G4Box *solidworld=new G4Box("solidworld",0.5*m,0.5*m,0.5*m);
+   
+   G4LogicalVolume *logicworld=new G4LogicalVolume(solidworld,worldMat,"logicWorld");
+   
+   G4VPhysicalVolume *physWorld= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.),logicworld,"physworld",0,false,0,true);
+   
+   return physWorld;
+   
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//construction.hh
+
+
+
+#ifndef CONSTRUCTION_HH
+#define CONSTRUCTION_HH
+
+#include "G4VUserDetectorConstruction.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Box.hh"
+#include "G4PVPlacement.hh"
+#include "G4NistManager.hh"
+#include "G4SystemOfUnits.hh"
+
+class MyDetectorConstruction : public G4VUserDetectorConstruction
+
+{
+public:
+        MyDetectorConstruction();
+        ~MyDetectorConstruction();
+        
+        virtual G4VPhysicalVolume *Construct();
+        };   
+        
+#endif         
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//physics.hh
+
+
+
+#ifndef PHYSICS_HH
+#define PHYSICS_HH
+
+#include "G4VModularPhysicsList.hh"
+#include "G4EmStandardPhysics.hh"
+#include "G4OpticalPhysics.hh"
+//#include "G4RadioactiveDecayPhysics.hh"
+//#include "G4DecayPhysics.hh"
+
+class MyPhysicsList : public G4VModularPhysicsList
+{
+public:
+    MyPhysicsList();
+    ~MyPhysicsList();
+};
+
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//sim.cc
+
+
+#include <iostream>
+
+#include "G4RunManager.hh"
+#include "G4UImanager.hh"
+#include "G4VisManager.hh"
+#include "G4VisExecutive.hh"
+#include "G4UIExecutive.hh"
+#include "construction.cc"
+#include "physics.cc"
+#include "action.cc"      //----------------------->>>> Correction
+ #include "generator.cc"  //........................>>> correction
+
+
+int  main(int argc, char** argv)
+
+{ G4RunManager *runManager = new G4RunManager();
+runManager->SetUserInitialization(new MyDetectorConstruction());
+runManager->SetUserInitialization(new MyPhysicsList());
+runManager->SetUserInitialization(new MyActionInitialization());
+
+runManager->Initialize();
+
+ G4UIExecutive *ui = new G4UIExecutive(argc, argv);
+
+G4VisManager *vismanager =new G4VisExecutive ();
+vismanager->Initialize();
+
+G4UImanager *UImanager = G4UImanager::GetUIpointer();
+
+UImanager->ApplyCommand("/vis/open OGL");
+UImanager->ApplyCommand("/vis/viewer/set/viewpointVector 1 1 1"); 
+UImanager->ApplyCommand("/vis/drawVolume");
+UImanager->ApplyCommand("/vis/viewer/set/autoRefresh true"); 
+UImanager->ApplyCommand("/vis/scene/add/trajectories smooth");
+ui->SessionStart();
+
+return 0;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//generator.hh
+
+#ifndef GENERATOR_HH
+#define GENERATOR_HH
+
+#include "G4VUserPrimaryGeneratorAction.hh"
+
+#include "G4ParticleGun.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4ParticleTable.hh"
+//#include "G4IonTable.hh"
+//#include "G4ChargedGeantino.hh"
+//#include "Randomize.hh"
+
+class MyPrimaryGenerator : public G4VUserPrimaryGeneratorAction
+{
+public:
+    MyPrimaryGenerator();
+    ~MyPrimaryGenerator();
+
+    virtual void GeneratePrimaries(G4Event*);
+
+private:
+    G4ParticleGun *fParticleGun;
+};
+
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//generator.cc
+
+
+
+
+
+
+#include "generator.hh"
+
+MyPrimaryGenerator::MyPrimaryGenerator()
+{
+    fParticleGun = new G4ParticleGun(1);
+
+   // G4ParticleTable *particleTable = G4ParticleTable::GetParticleTable();
+  //  G4ParticleDefinition *particle = particleTable->FindParticle("chargedgeantino");
+
+  //  G4ThreeVector pos(0.,0.,-20.*km);
+  //  G4ThreeVector mom(0.,0.,1.);
+
+  //  fParticleGun->SetParticlePosition(pos);
+   // fParticleGun->SetParticleMomentumDirection(mom);
+  //  fParticleGun->SetParticleMomentum(100.*GeV);
+  //  fParticleGun->SetParticleDefinition(particle);
+}
+
+MyPrimaryGenerator::~MyPrimaryGenerator()
+{
+    delete fParticleGun;
+}
+
+void MyPrimaryGenerator::GeneratePrimaries(G4Event *anEvent)
+{
+  G4ParticleTable *particleTable=G4ParticleTable::GetParticleTable();
+  
+  G4String particleName="proton";
+  G4ParticleDefinition *particle =particleTable->FindParticle("proton");
+  
+  G4ThreeVector pos(0.,0.,0.);
+  
+  G4ThreeVector mom(0.,0.,1.);
+  
+    fParticleGun->SetParticlePosition(pos);
+        fParticleGun->SetParticleMomentumDirection(mom);
+          fParticleGun->SetParticleMomentum(100. *GeV);
+         fParticleGun->SetParticleDefinition(particle);
+         
+           fParticleGun->GeneratePrimaryVertex(anEvent);
+       
+         
+        
+  
+  
+   // G4ParticleDefinition* particle = fParticleGun->GetParticleDefinition();
+
+    //if(particle == G4ChargedGeantino::ChargedGeantino())
+    //{
+      //  G4int Z = 27;
+      //  G4int A = 60;
+
+      //  G4double charge   = 0.*eplus;
+      //  G4double energy = 0.*keV;
+
+      //  G4ParticleDefinition* ion = G4IonTable::GetIonTable()->GetIon(Z,A,energy);
+      //  fParticleGun->SetParticleDefinition(ion);
+      //  fParticleGun->SetParticleCharge(charge);
+   // }
+
+   // fParticleGun->GeneratePrimaryVertex(anEvent);
+}
+
