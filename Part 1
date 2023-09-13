@@ -1,4 +1,11 @@
+
+
+
+
 //Prerequisites
+
+OS :  Ubuntu 22.04.3 LTS
+
 sudo apt install cmake cmake-curses-gui gcc g++ libexpat1-dev qt5-default libxmu-dev libmotif-dev
 
 //If having problem to install qt5-default
