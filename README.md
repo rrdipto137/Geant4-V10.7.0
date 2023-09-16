@@ -1,4 +1,4 @@
-# geant4-V10.7.0
+# Geant4-V10.7.0
 
 The main tutorial Videos you will find at:
 https://www.youtube.com/playlist?list=PLLybgCU6QCGWgzNYOV0SKen9vqg4KXeVL
