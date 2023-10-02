@@ -1,0 +1,483 @@
+
+//construction.cc
+
+
+
+
+
+
+
+
+#include  "construction.hh"
+
+ MyDetectorConstruction::MyDetectorConstruction()
+ {
+ fMessenger =new G4GenericMessenger(this, "/detector/","Detector_Construction");
+ 
+ fMessenger->DeclareProperty("nCols",nCols,"Number of columns");
+ fMessenger->DeclareProperty("nRows",nRows,"Number of rows");
+ 
+ 
+ nCols=100;
+ nRows=100;
+ 
+ DefineMaterials();
+ }
+ 
+  MyDetectorConstruction::~MyDetectorConstruction()
+  {}
+  void MyDetectorConstruction::DefineMaterials()
+{
+    G4NistManager *nist = G4NistManager::Instance();
+
+   
+    SiO2 = new G4Material("SiO2", 2.201*g/cm3, 2);
+    Aerogel = new G4Material("Aerogel", 0.200*g/cm3, 3);
+    worldMat = nist->FindOrBuildMaterial("G4_AIR");
+    H2O = new G4Material("H2O", 1.000*g/cm3, 2);
+
+    SiO2->AddElement(nist->FindOrBuildElement("Si"), 1);
+    SiO2->AddElement(nist->FindOrBuildElement("O"), 2);
+
+    H2O->AddElement(nist->FindOrBuildElement("H"), 2);
+    H2O->AddElement(nist->FindOrBuildElement("O"), 1);
+    C = nist->FindOrBuildElement("C");
+ 
+    Aerogel->AddMaterial(SiO2, 62.5*perCent);
+    Aerogel->AddMaterial(H2O, 37.4*perCent);
+    Aerogel->AddElement(C, 0.1*perCent);
+   
+   
+    worldMat= nist->FindOrBuildMaterial("G4_AIR");
+   
+     G4double energy[2] = {1.239841939*eV/0.2 ,1.239841939*eV/0.9};
+   G4double rindexAerogel[2]={1.1,1.1};
+    G4double rindexWorld[2]={1.0,1.0};
+    
+   G4MaterialPropertiesTable *mptAerogel =new G4MaterialPropertiesTable();
+   mptAerogel->AddProperty("RINDEX",energy,rindexAerogel,2);
+
+ G4MaterialPropertiesTable *mptWorld =new G4MaterialPropertiesTable();
+   mptWorld->AddProperty("RINDEX",energy,rindexAerogel,2);
+
+
+ Aerogel->SetMaterialPropertiesTable(mptAerogel);
+   
+ 
+   
+   worldMat->SetMaterialPropertiesTable(mptWorld);
+   
+   }
+  
+   
+   G4VPhysicalVolume *MyDetectorConstruction::Construct()
+   {
+   
+   
+   
+   G4double xWorld=0.5*m;
+   G4double yWorld=0.5*m;
+   G4double zWorld=0.5*m;
+  
+ 
+    
+  solidworld=new G4Box("solidworld",xWorld,yWorld,zWorld);
+   
+   logicworld=new G4LogicalVolume(solidworld,worldMat,"logicWorld");
+   
+   physWorld= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.),logicworld,"physworld",0,false,0,true);
+   
+  solidRadiator =new G4Box ("solidRadiator", 0.4*m ,0.4*m, 0.01*m); //dimension of the radiator
+   
+   logicRadiator =new G4LogicalVolume(solidRadiator,Aerogel, "logicalRadiator");
+   
+   fScoringVolume =logicRadiator;
+   
+   physRadiator= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.25*m),logicRadiator,"physRadiator",logicworld,false,0,true);  //where the radiator is
+   
+   
+   solidDetector =new G4Box("solidDetector",xWorld/nRows,yWorld/nCols,0.005*m); //solid detector define
+   
+   
+   logicDetector =new G4LogicalVolume(solidDetector, worldMat , "logicDetector");
+   
+   
+   for (G4int i=0;i< nRows;i++)
+   {
+   for(G4int j = 0; j<nCols;j++)
+   
+   {
+   phyDetector=new G4PVPlacement(0, G4ThreeVector(-0.5*m+(i+0.5)*m/nRows,-0.5*m+(j+0.5)*m/nCols,0.49*m),logicDetector,"physDetector",logicworld,false,j+i*nCols,true);
+   
+   }
+   
+   
+   
+   }
+ 
+   return physWorld;
+   
+   }
+   
+   void MyDetectorConstruction::ConstructSDandField()
+   {
+   MySensitiveDetector *sensDet=new MySensitiveDetector("SensitiveDetector");
+   
+   logicDetector->SetSensitiveDetector(sensDet);
+   
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//construction.hh
+
+#ifndef CONSTRUCTION_HH
+#define CONSTRUCTION_HH
+
+#include "G4VUserDetectorConstruction.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Box.hh"
+#include "G4PVPlacement.hh"
+#include "G4NistManager.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4GenericMessenger.hh"
+#include "detector.hh"
+
+class MyDetectorConstruction : public G4VUserDetectorConstruction
+
+{
+public:
+        MyDetectorConstruction();
+        ~MyDetectorConstruction();
+        
+        
+        G4LogicalVolume *GetScoringVolume() const { return fScoringVolume;}
+        
+        
+        virtual G4VPhysicalVolume *Construct();
+        
+        
+        
+private:
+
+G4LogicalVolume *logicDetector;
+virtual void ConstructSDandField();
+G4int nCols,nRows;
+
+ G4Box *solidworld, *solidRadiator,  *solidDetector;
+ G4LogicalVolume *logicworld,*logicRadiator; //we have defined logicdetector at likne 27
+  G4VPhysicalVolume *physWorld,*physRadiator,* phyDetector;
+
+
+G4GenericMessenger *fMessenger;
+
+G4LogicalVolume *fScoringVolume;
+
+G4Material *SiO2,*H2O, *Aerogel, *worldMat;
+G4Element *C;
+void DefineMaterials();
+        
+        };   
+        
+#endif         
+
+
+
+
+//stepping.cc
+
+
+
+
+#include "stepping.hh"
+
+MySteppingAction::MySteppingAction(MyEventAction *eventAction)
+{
+    fEventAction = eventAction;
+}
+
+MySteppingAction::~MySteppingAction()
+{}
+
+void MySteppingAction::UserSteppingAction(const G4Step *step)
+{   
+    G4LogicalVolume *volume = step->GetPreStepPoint()->GetTouchableHandle()->GetVolume()->GetLogicalVolume();
+    
+    const MyDetectorConstruction *detectorConstruction = static_cast<const MyDetectorConstruction*> (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
+    
+    G4LogicalVolume *fScoringVolume = detectorConstruction->GetScoringVolume();
+    
+    if(volume != fScoringVolume)
+        return;
+    
+    G4double edep = step->GetTotalEnergyDeposit();
+    fEventAction->AddEdep(edep);
+}
+
+
+
+
+//stepping.hh
+
+
+
+#ifndef STEPPING_HH
+#define STEPPING_HH
+
+#include "G4UserSteppingAction.hh"
+#include "G4Step.hh"
+#include "G4Gamma.hh"
+#include "G4Electron.hh"
+
+#include "construction.hh"
+#include "event.hh"
+
+class MySteppingAction : public G4UserSteppingAction
+{
+public:
+    MySteppingAction(MyEventAction* eventAction);
+    ~MySteppingAction();
+    
+    virtual void UserSteppingAction(const G4Step*);
+    
+private:
+    MyEventAction *fEventAction;
+};
+
+#endif
+
+
+
+//action.cc
+
+#include "action.hh"
+
+MyActionInitialization::MyActionInitialization()
+{}
+
+MyActionInitialization::~MyActionInitialization()
+{}
+
+void MyActionInitialization::BuildForMaster() const
+{
+   MyRunAction *runAction = new MyRunAction();
+    SetUserAction(runAction);
+}
+
+void MyActionInitialization::Build() const
+{
+    MyPrimaryGenerator *generator = new MyPrimaryGenerator();
+    SetUserAction(generator);
+    
+    MyRunAction *runAction = new MyRunAction();
+    SetUserAction(runAction);
+    
+   MyEventAction *eventAction = new MyEventAction(runAction);
+   SetUserAction(eventAction);
+    
+    MySteppingAction *steppingAction = new MySteppingAction(eventAction);
+    SetUserAction(steppingAction);
+}
+
+
+
+
+
+//action.hh
+
+
+#ifndef ACTION_HH
+#define ACTION_HH
+
+#include "G4VUserActionInitialization.hh"
+#include "run.hh"
+ #include "generator.hh"
+#include "run.hh"
+#include "event.hh"
+#include "stepping.hh"
+
+class MyActionInitialization : public G4VUserActionInitialization
+{
+public:
+    MyActionInitialization();
+    ~MyActionInitialization();
+    
+    
+    virtual void Build() const;
+virtual void BuildForMaster() const;
+};
+
+#endif
+
+
+
+
+
+//sim.cc
+
+
+
+#include <iostream>
+
+#include "G4RunManager.hh"
+
+#include "G4MTRunManager.hh"
+#include "G4UImanager.hh"
+#include "G4VisManager.hh"
+#include "G4VisExecutive.hh"
+#include "G4UIExecutive.hh"
+#include "construction.cc"
+#include "physics.cc"
+#include "action.cc"
+ #include "generator.cc"
+ #include "detector.cc"
+ #include "run.cc"
+ #include "stepping.cc"
+#include "event.cc"
+int  main(int argc, char** argv)
+
+{ 
+
+ G4UIExecutive *ui = 0;
+
+#ifdef G4MULTITHREADED
+G4MTRunManager *runManager = new G4MTRunManager();
+#else
+G4RunManager *runManager = new G4RunManager();
+#endif
+runManager->SetUserInitialization(new MyDetectorConstruction());
+runManager->SetUserInitialization(new MyPhysicsList());
+runManager->SetUserInitialization(new MyActionInitialization());
+
+
+
+
+
+ 
+ if(argc==1){
+ ui= new G4UIExecutive(argc, argv);
+}
+G4VisManager *vismanager =new G4VisExecutive ();
+vismanager->Initialize();
+G4UImanager *UImanager = G4UImanager::GetUIpointer();
+if(ui)
+{
+
+ UImanager->ApplyCommand("/control/execute vis.mac");
+ui->SessionStart();
+}
+else
+{
+G4String command="/control/execute ";
+G4String fileName=argv[1];
+UImanager->ApplyCommand(command+fileName);
+}
+return 0;
+
+}
+
+
+
+
+
+//event.hh
+
+
+
+#ifndef EVENT_HH
+#define EVENT_HH
+
+#include "G4UserEventAction.hh"
+#include "G4Event.hh"
+
+#include "g4root.hh"
+
+#include "run.hh"
+
+class MyEventAction : public G4UserEventAction
+{
+public:
+    MyEventAction(MyRunAction*);
+    ~MyEventAction();
+    
+    virtual void BeginOfEventAction(const G4Event*);
+    virtual void EndOfEventAction(const G4Event*);
+    
+    void AddEdep(G4double edep) { fEdep += edep; } 
+    
+private:
+    G4double fEdep;
+};
+
+#endif
+
+
+
+
+
+
+
+
+
+//event.cc
+
+
+
+#include "event.hh"
+
+MyEventAction::MyEventAction(MyRunAction*)
+{
+    fEdep = 0.;
+}
+
+MyEventAction::~MyEventAction()
+{}
+
+void MyEventAction::BeginOfEventAction(const G4Event*)
+{
+    fEdep = 0.;
+}
+
+void MyEventAction::EndOfEventAction(const G4Event*)
+{
+    G4cout << "Energy deposition: " << fEdep << G4endl;
+
+    G4AnalysisManager *man = G4AnalysisManager::Instance();
+
+    man->FillNtupleDColumn(2, 0, fEdep);
+
+    man->AddNtupleRow(2);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
