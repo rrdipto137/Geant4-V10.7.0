@@ -1,0 +1,596 @@
+//construction.hh
+
+#ifndef CONSTRUCTION_HH
+#define CONSTRUCTION_HH
+
+#include "G4VUserDetectorConstruction.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Box.hh"
+#include "G4PVPlacement.hh"
+#include "G4NistManager.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4GenericMessenger.hh"
+#include "detector.hh"
+
+class MyDetectorConstruction : public G4VUserDetectorConstruction
+
+{
+public:
+        MyDetectorConstruction();
+        ~MyDetectorConstruction();
+        
+        virtual G4VPhysicalVolume *Construct();
+        
+        
+        
+private:
+
+G4LogicalVolume *logicDetector;
+virtual void ConstructSDandField();
+G4int nCols,nRows;
+
+ G4Box *solidworld, *solidRadiator,  *solidDetector;
+ G4LogicalVolume *logicworld,*logicRadiator; //we have defined logicdetector at likne 27
+  G4VPhysicalVolume *physWorld,*physRadiator,* phyDetector;
+
+
+G4GenericMessenger *fMessenger;
+
+G4Material *SiO2,*H2O, *Aerogel, *worldMat;
+G4Element *C;
+void DefineMaterials();
+        
+        };   
+        
+#endif         
+
+
+
+
+
+
+
+
+
+//construction.cc
+
+
+#include  "construction.hh"
+
+ MyDetectorConstruction::MyDetectorConstruction()
+ {
+ fMessenger =new G4GenericMessenger(this, "/detector/","Detector_Construction");
+ 
+ fMessenger->DeclareProperty("nCols",nCols,"Number of columns");
+ fMessenger->DeclareProperty("nRows",nRows,"Number of rows");
+ 
+ 
+ nCols=100;
+ nRows=100;
+ 
+ DefineMaterials();
+ }
+ 
+  MyDetectorConstruction::~MyDetectorConstruction()
+  {}
+  void MyDetectorConstruction::DefineMaterials()
+{
+    G4NistManager *nist = G4NistManager::Instance();
+
+   
+    SiO2 = new G4Material("SiO2", 2.201*g/cm3, 2);
+    Aerogel = new G4Material("Aerogel", 0.200*g/cm3, 3);
+    worldMat = nist->FindOrBuildMaterial("G4_AIR");
+    H2O = new G4Material("H2O", 1.000*g/cm3, 2);
+
+    SiO2->AddElement(nist->FindOrBuildElement("Si"), 1);
+    SiO2->AddElement(nist->FindOrBuildElement("O"), 2);
+
+    H2O->AddElement(nist->FindOrBuildElement("H"), 2);
+    H2O->AddElement(nist->FindOrBuildElement("O"), 1);
+    C = nist->FindOrBuildElement("C");
+ 
+    Aerogel->AddMaterial(SiO2, 62.5*perCent);
+    Aerogel->AddMaterial(H2O, 37.4*perCent);
+    Aerogel->AddElement(C, 0.1*perCent);
+   
+   
+    worldMat= nist->FindOrBuildMaterial("G4_AIR");
+   
+     G4double energy[2] = {1.239841939*eV/0.2 ,1.239841939*eV/0.9};
+   G4double rindexAerogel[2]={1.1,1.1};
+    G4double rindexWorld[2]={1.0,1.0};
+    
+   G4MaterialPropertiesTable *mptAerogel =new G4MaterialPropertiesTable();
+   mptAerogel->AddProperty("RINDEX",energy,rindexAerogel,2);
+
+ G4MaterialPropertiesTable *mptWorld =new G4MaterialPropertiesTable();
+   mptWorld->AddProperty("RINDEX",energy,rindexAerogel,2);
+
+
+ Aerogel->SetMaterialPropertiesTable(mptAerogel);
+   
+ 
+   
+   worldMat->SetMaterialPropertiesTable(mptWorld);
+   
+   }
+  
+   
+   G4VPhysicalVolume *MyDetectorConstruction::Construct()
+   {
+   
+   
+   
+   G4double xWorld=0.5*m;
+   G4double yWorld=0.5*m;
+   G4double zWorld=0.5*m;
+  
+ 
+    
+  solidworld=new G4Box("solidworld",xWorld,yWorld,zWorld);
+   
+   logicworld=new G4LogicalVolume(solidworld,worldMat,"logicWorld");
+   
+   physWorld= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.),logicworld,"physworld",0,false,0,true);
+   
+  solidRadiator =new G4Box ("solidRadiator", 0.4*m ,0.4*m, 0.05*m);
+   
+   logicRadiator =new G4LogicalVolume(solidRadiator,Aerogel, "logicalRadiator");
+   
+   physRadiator= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.25*m),logicRadiator,"physRadiator",logicworld,false,0,true);
+   
+   
+   solidDetector =new G4Box("solidDetector",xWorld/nRows,yWorld/nCols,0.005*m); //solid detector define
+   
+   
+   logicDetector =new G4LogicalVolume(solidDetector, worldMat , "logicDetector");
+   
+   
+   for (G4int i=0;i< nRows;i++)
+   {
+   for(G4int j = 0; j<nCols;j++)
+   
+   {
+   phyDetector=new G4PVPlacement(0, G4ThreeVector(-0.5*m+(i+0.5)*m/nRows,-0.5*m+(j+0.5)*m/nCols,0.49*m),logicDetector,"physDetector",logicworld,false,j+i*nCols,true);
+   
+   }
+   }
+   
+   return physWorld;
+   
+   }
+   
+   void MyDetectorConstruction::ConstructSDandField()
+   {
+   MySensitiveDetector *sensDet=new MySensitiveDetector("SensitiveDetector");
+   
+   logicDetector->SetSensitiveDetector(sensDet);
+   
+   }
+
+
+
+
+//generator.cc
+
+
+#include "generator.hh"
+
+MyPrimaryGenerator::MyPrimaryGenerator()
+{
+    fParticleGun = new G4ParticleGun(1);
+G4ParticleTable *particleTable=G4ParticleTable::GetParticleTable();
+  
+  G4String particleName="proton";
+  G4ParticleDefinition *particle =particleTable->FindParticle("proton");
+  
+  G4ThreeVector pos(0.,0.,0.);
+  
+  G4ThreeVector mom(0.,0.,1.);
+  
+    fParticleGun->SetParticlePosition(pos);
+        fParticleGun->SetParticleMomentumDirection(mom);
+          fParticleGun->SetParticleMomentum(100. *GeV);
+         fParticleGun->SetParticleDefinition(particle);
+ 
+}
+
+MyPrimaryGenerator::~MyPrimaryGenerator()
+{
+    delete fParticleGun;
+}
+
+void MyPrimaryGenerator::GeneratePrimaries(G4Event *anEvent)
+{
+  
+         
+           fParticleGun->GeneratePrimaryVertex(anEvent);
+
+ 
+}
+
+
+
+
+//generator.hh
+
+#ifndef GENERATOR_HH
+#define GENERATOR_HH
+
+#include "G4VUserPrimaryGeneratorAction.hh"
+
+#include "G4ParticleGun.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4ParticleTable.hh"
+//#include "G4IonTable.hh"
+//#include "G4ChargedGeantino.hh"
+//#include "Randomize.hh"
+
+class MyPrimaryGenerator : public G4VUserPrimaryGeneratorAction
+{
+public:
+    MyPrimaryGenerator();
+    ~MyPrimaryGenerator();
+
+    virtual void GeneratePrimaries(G4Event*);
+
+private:
+    G4ParticleGun *fParticleGun;
+};
+
+#endif
+
+
+
+
+
+
+//detector.hh
+
+#ifndef DETECTOR_HH
+#define DETECTOR_HH
+
+#include "G4VSensitiveDetector.hh"
+#include "G4RunManager.hh"
+#include "G4SystemOfUnits.hh"
+
+#include "g4root.hh"
+
+class MySensitiveDetector : public G4VSensitiveDetector
+{
+public:
+    MySensitiveDetector(G4String);
+    ~MySensitiveDetector();
+    
+private:
+    virtual G4bool ProcessHits(G4Step *, G4TouchableHistory *);
+    
+   // G4PhysicsOrderedFreeVector *quEff;
+};
+
+#endif
+
+
+
+
+
+
+
+
+//detector.cc
+
+
+#include "detector.hh"
+#include "g4root.hh"
+MySensitiveDetector::MySensitiveDetector(G4String name) : G4VSensitiveDetector(name)
+{
+    /*quEff = new G4PhysicsOrderedFreeVector();
+
+    std::ifstream datafile;
+    datafile.open("eff.dat");
+
+    while(1)
+    {
+        G4double wlen, queff;
+
+        datafile >> wlen >> queff;
+
+        if(datafile.eof())
+            break;
+
+        G4cout << wlen << " " << queff << std::endl;
+
+        quEff->InsertValues(wlen, queff/100.);*/
+    }
+
+
+
+MySensitiveDetector::~MySensitiveDetector()
+{}
+
+G4bool MySensitiveDetector::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
+
+
+{
+   G4Track *track = aStep->GetTrack();
+
+    track->SetTrackStatus(fStopAndKill); //when photon hits the detector it kills photon's trajectory
+
+    G4StepPoint *preStepPoint = aStep->GetPreStepPoint();   //photon's start point
+    G4StepPoint *postStepPoint = aStep->GetPostStepPoint(); //photon's end point
+
+    G4ThreeVector posPhoton = preStepPoint->GetPosition();
+
+   const G4VTouchable *touchable = aStep->GetPreStepPoint()->GetTouchable();
+
+    G4int copyNo = touchable->GetCopyNumber();
+
+
+
+    G4VPhysicalVolume *physVol = touchable->GetVolume();
+    G4ThreeVector posDetector = physVol->GetTranslation();
+   
+     #ifndef G4MULTITHREADED
+      G4cout << "Detector position: " << posDetector << G4endl;
+
+  
+      
+        //G4cout << "Photon wavelength: " << wlen << G4endl;
+    
+    
+    #endif
+
+    G4int evt = G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID();
+
+    G4AnalysisManager *man = G4AnalysisManager::Instance();
+
+ 
+    {
+        man->FillNtupleIColumn(0, evt);
+        man->FillNtupleDColumn(1,  posDetector[0]);
+        man->FillNtupleDColumn(2,  posDetector[1]);
+        man->FillNtupleDColumn(3, posDetector[2]);
+        man->AddNtupleRow(0);
+    }
+
+    return true;
+}
+
+
+
+
+
+
+
+
+
+//sim.cc
+
+
+#include <iostream>
+
+#include "G4RunManager.hh"
+
+#include "G4MTRunManager.hh"
+#include "G4UImanager.hh"
+#include "G4VisManager.hh"
+#include "G4VisExecutive.hh"
+#include "G4UIExecutive.hh"
+#include "construction.cc"
+#include "physics.cc"
+#include "action.cc"
+ #include "generator.cc"
+ #include "detector.cc"
+ #include "run.cc"
+
+int  main(int argc, char** argv)
+
+{ 
+
+ G4UIExecutive *ui = 0;
+
+#ifdef G4MULTITHREADED
+G4MTRunManager *runManager = new G4MTRunManager();
+#else
+G4RunManager *runManager = new G4RunManager();
+#endif
+runManager->SetUserInitialization(new MyDetectorConstruction());
+runManager->SetUserInitialization(new MyPhysicsList());
+runManager->SetUserInitialization(new MyActionInitialization());
+
+ 
+ if(argc==1){
+ ui= new G4UIExecutive(argc, argv);
+}
+G4VisManager *vismanager =new G4VisExecutive ();
+vismanager->Initialize();
+G4UImanager *UImanager = G4UImanager::GetUIpointer();
+if(ui)
+{
+
+ UImanager->ApplyCommand("/control/execute vis.mac");
+ui->SessionStart();
+}
+else
+{
+G4String command="/control/execute ";
+G4String fileName=argv[1];
+UImanager->ApplyCommand(command+fileName);
+}
+return 0;
+
+}
+
+
+
+
+//vis.mac
+
+
+/run/initialize
+/vis/open OGL
+/vis/viewer/set/viewpointVector 1 1 1
+/vis/drawVolume
+/vis/viewer/set/autoRefresh true
+/vis/scene/add/trajectories smooth
+/vis/scene/endOfEventAction accumulate
+/vis/scene/add/scale 10 cm
+/vis/scene/add/axes
+/vis/scene/add/eventID
+
+
+
+
+
+//CMakeLists.txt
+
+cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+
+project(Simulation)
+
+find_package(Geant4 REQUIRED  ui_all vis_all)
+
+include(${Geant4_USE_FILE})
+
+file(GLOB sources ${PROJECT_SOURCE_DIR}/*.cc)
+file(GLOB headers ${PROJECT_SOURCE_DIR}/*.hh)
+
+file(GLOB MACRO_FILES
+
+"*.mac"
+
+)
+
+file(COPY ${MACRO_FILES} DESTINATION ${PROJECT_BINARY_DIR}) 
+
+add_executable(sim sim.cc ${source} ${headers})
+target_link_libraries(sim ${Geant4_LIBRARIES})
+
+add_custom_target(Simulation DEPENDS sim)
+
+
+
+
+
+
+
+//run.mac
+
+/run/numberOfThreads 4
+/run/initialize
+/gun/momentumAmp 10 GeV
+/run/beamOn 10000
+
+
+
+
+
+
+//run.cc
+
+
+#include "run.hh"
+
+MyRunAction::MyRunAction()
+{ G4AnalysisManager *man = G4AnalysisManager::Instance();
+   man->CreateNtuple("Hits", "Hits");
+    man->CreateNtupleIColumn("fEvent");
+    man->CreateNtupleDColumn("fX");
+    man->CreateNtupleDColumn("fY");
+    man->CreateNtupleDColumn("fZ");
+    man->FinishNtuple(0);
+}
+
+MyRunAction::~MyRunAction()
+{}
+
+void MyRunAction::BeginOfRunAction(const G4Run* run)
+{ 
+  G4AnalysisManager *man = G4AnalysisManager::Instance();
+  
+     G4int runID = run->GetRunID();
+
+    std::stringstream strRunID;
+    strRunID << runID;
+
+    man->OpenFile("output"+strRunID.str()+".root");
+
+
+}
+
+void MyRunAction::EndOfRunAction(const G4Run*)
+{
+    G4AnalysisManager *man = G4AnalysisManager::Instance();
+
+    man->Write();
+    man->CloseFile(); 
+}
+
+
+
+
+
+
+// action.cc
+
+
+#include "action.hh"
+
+MyActionInitialization::MyActionInitialization()
+{}
+
+MyActionInitialization::~MyActionInitialization()
+{}
+
+void MyActionInitialization::BuildForMaster() const
+{
+   MyRunAction *runAction = new MyRunAction();
+    SetUserAction(runAction);
+}
+
+void MyActionInitialization::Build() const
+{
+    MyPrimaryGenerator *generator = new MyPrimaryGenerator();
+    SetUserAction(generator);
+    
+    MyRunAction *runAction = new MyRunAction();
+    SetUserAction(runAction);
+ 
+}
+
+
+
+
+
+
+
+
+
+
+
+//action.hh
+
+#ifndef ACTION_HH
+#define ACTION_HH
+
+#include "G4VUserActionInitialization.hh"
+#include "run.hh"
+ #include "generator.hh"
+
+
+class MyActionInitialization : public G4VUserActionInitialization
+{
+public:
+    MyActionInitialization();
+    ~MyActionInitialization();
+    
+    
+    virtual void Build() const;
+virtual void BuildForMaster() const;
+};
+
+#endif
+
+
