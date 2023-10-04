@@ -478,7 +478,7 @@ add_custom_target(Simulation DEPENDS sim)
 
 //run.mac
 
-/run/numberOfThreads 4
+/run/numberOfThreads 3
 /run/initialize
 /gun/momentumAmp 10 GeV
 /run/beamOn 10000
